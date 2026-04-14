@@ -1,0 +1,76 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: clinicflow-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: clinicflow
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    container_name: clinicflow-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  laravel:
+    build:
+      context: ./legacy-laravel
+    container_name: clinicflow-laravel
+    restart: always
+    working_dir: /app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    volumes:
+      - ./legacy-laravel:/app
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: clinicflow
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+  node:
+    build:
+      context: ./services-node
+    container_name: clinicflow-node
+    restart: always
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql
+      - redis
+
+    environment:
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: clinicflow
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+  frontend:
+    build:
+      context: ./frontend
+    container_name: clinicflow-frontend
+    restart: always
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    depends_on:
+      - node
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+volumes:
+  mysql_data:
